@@ -1,0 +1,391 @@
+---
+title: "Investigation of NO~X~, PM~2.5~, and O~3~  (ppm) trends in Ontario from 2003 to 2022"
+author: "Mohamad Damaj - 10109, Moham An, Jo Zhu"
+date: "2025-03-18"
+output: 
+  html_document:
+    theme: lumen
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, include = FALSE}
+library(tidyverse)
+library(readxl)
+library(lubridate)
+library(ggplot2)
+library(lubridate)
+library(knitr)
+library(stringr)
+library(tidygeocoder)
+library(gridExtra)
+
+```
+
+```{r, include = FALSE}
+NOX <- read_excel("./data/NOX.xlsx", skip = 3)
+O3 <- read_excel("./data/O3.xlsx", skip = 3)
+PM25 <- read_excel("./data/PM25.xlsx", skip = 5)
+SO2 <- read_excel("./data/SO2.xlsx", , skip = 7)
+```
+
+
+# 1. Description of Datasets
+
+The datasets analyzed in this report are three, one for each of NO~X~, PM~2.5~, and O~3~, all containing the same variables. These datasets contain records of the pollutant levels (in parts per million, ppm) from  2003 (considered the earliest of all three) to 2022. Each dataset contains detailed information of pollutant levels in the form of the following variables:
+
+```{r, echo=F}
+
+names(NOX)
+```
+1. Year:  The calendar year when the pollutant data was recorded.
+2. Station Number: A unique numerical identifier for the monitoring station.
+3. City: The name of the city where the pollutant was measured.
+4. Location: A more specific description of the monitoring location (street, area).
+5. Type: The type of monitoring station or measurement protocol used.
+6. Valid Hour: The number of valid hourly measurements recorded for that pollutant in the given year.
+7. Percentiles: Percentile statistics showing the distribution of pollutant levels (in ppm) throughout the year.
+8. Mean: The annual average concentration of the pollutant (ppm).
+9. 1-Hour Maximum: The highest recorded concentration within a one-hour period during the year.
+10. 24-Hour Maximum: The highest average concentration recorded over a 24-hour period in that year.
+
+
+## 2. Background of the Data
+
+The data used in this analysis was collected across various cities in Ontario, throughout the period from 2003 to 2022. These measurements were compiled and made available by the Ontario Ministry of the Environment, Conservation and Parks. 
+
+The information is publically avaliable and is helpful in assiting researchers, policymakers, and public health officials to investigate air quality trends, evaluate the impact of environmental regulations, and inform policy decisions. It provides a long-term view of pollutant levels in various cities in Ontario, allowing for improving environmental and public health outcomes in Ontario.
+
+
+## 3. Overall Research Question
+
+The aim of this paper is to investigate the spatial and temporal trends of air pollutants (NO~X~, O~3~, and PM~2.5~) across various Ontario cities from 2003 to 2022. 
+
+1. How have annual mean concentrations (in ppm) for each pollutant changed from 2003 to 2022, and which years show the most significant shifts?
+
+2. Which cities consistently rank among the highest (or lowest) in terms of average pollutant levels, and do these rankings shift over time?
+
+3. How do the four pollutants correlate with each other across different cities and years, and what might this indicate about broader air quality patterns?
+
+
+
+## 4. Data Evaluation
+
+In order to view the pollutant concentration changes by region, we grouped the cities by region based on the map of Ontario from the Ministry of Natural Resources and Forestry, and calculated the mean of the cities in each region grouped by year.
+
+
+```{r, include=FALSE}
+
+city_to_region <- data.frame(
+  City = c(
+    # Southwest
+    "Windsor West",
+    "Windsor Downtown",
+    "Windsor North",
+    "Grand Bend",
+    "London",
+    "Chatham",
+    "Sarnia",
+    "Brantford",
+    "Kitchener",
+    "St. Catharines",
+    "St. Catherines",
+    "Port Stanley",
+    "Essex",
+    
+    # Hamilton
+    "Hamilton Mountain",
+    "Hamilton Downtown",
+    "Hamilton West",
+    
+    # GTA (Greater Toronto Area) - including Halton/Peel/York/Durham
+    "Toronto Downtown",
+    "Toronto East",
+    "Toronto North",
+    "Toronto West",
+    "Burlington",
+    "Oakville",
+    "Oshawa",
+    "Brampton",
+    "Mississauga",
+    "Newmarket",
+    "Milton",
+    "Etobicoke West",
+    "Stouffville",
+    
+    # Central Ontario
+    "Barrie",
+    "Guelph",
+    "Parry Sound",
+    "Peterborough",
+    
+    # Eastern Ontario
+    "Ottawa Downtown",
+    "Ottawa Central",
+    "Kingston",
+    "Tiverton",
+    "Belleville",
+    "Cornwall",
+    "Dorset",
+    "Petawawa",
+    "Morrisburg",
+    
+    # Northern Ontario
+    "Sudbury",
+    "Sault Ste. Marie",
+    "North Bay",
+    "Thunder Bay"
+  ),
+  Region = c(
+    # Southwest
+    "Western Ontario",
+    "Western Ontario",
+    "Western Ontario",
+    "Western Ontario",
+    "Western Ontario",
+    "Western Ontario",
+    "Western Ontario",
+    "Western Ontario",
+    "Western Ontario",
+    "Western Ontario",
+    "Western Ontario",
+    "Western Ontario",
+    "Western Ontario",
+
+
+    
+    # Hamilton
+    "Hamilton",
+    "Hamilton",
+    "Hamilton",
+
+    
+    # GTA
+    "GTA",
+    "GTA",
+    "GTA",
+    "GTA",
+    "GTA",
+    "GTA",
+    "GTA",
+    "GTA",
+    "GTA",
+    "GTA",
+    "GTA",
+    "GTA",
+    "GTA",
+
+    
+    
+    # Central Ontario
+    "Central Ontario",
+    "Central Ontario",
+    "Central Ontario",
+    
+    # Eastern Ontario
+    "Eastern Ontario",
+    "Eastern Ontario",
+    "Eastern Ontario",
+    "Eastern Ontario",
+    "Eastern Ontario",
+    "Eastern Ontario",
+    "Eastern Ontario",
+    "Eastern Ontario",
+    "Eastern Ontario",
+    "Eastern Ontario",
+
+    
+    # Northern Ontario
+    "Northern Ontario",
+    "Northern Ontario",
+    "Northern Ontario",
+    "Northern Ontario"
+  ),
+  stringsAsFactors = FALSE
+)
+
+
+NOX = NOX %>% mutate(Mean = as.numeric(Mean)) %>%  
+  filter(Year >= 2003)
+O3 = O3 %>% mutate(Mean = as.numeric(Mean)) %>%  
+  filter(Year >= 2003)
+PM25 = PM25 %>% mutate(Mean = as.numeric(Mean)) %>% 
+  mutate(Year = as.integer(Year)) %>%  filter(Year >= 2003)
+#view(PM25)
+```
+
+## NA imputing (TODO: decide what to do with this later)
+```{r}
+O3 = O3 %>% drop_na(Mean)
+NOX = NOX %>% drop_na(Mean)
+PM25 = PM25 %>% drop_na(Mean)
+```
+
+## Grouping in Regions
+```{r}
+NOX = NOX %>% left_join(city_to_region, by = "City")
+O3 = O3 %>% left_join(city_to_region, by = "City")
+PM25 = PM25 %>% left_join(city_to_region, by = "City")
+
+
+```
+
+```{r}
+NOX_Region = NOX %>% group_by(Year, Region) %>% summarise(Mean = mean(Mean))
+O3_Region = O3 %>% group_by(Year, Region) %>% summarise(Mean = mean(Mean))
+PM25_Region = PM25 %>% group_by(Year, Region) %>% summarise(Mean = mean(Mean))
+
+
+
+```
+```{r}
+kable(list(NOX_Region %>% arrange(desc(Mean)) %>% head(10), O3_Region %>% arrange(desc(Mean)) %>% head(10), PM25_Region %>% arrange(desc(Mean)) %>% head(10))) 
+
+```
+```{r}
+library(knitr)
+library(kableExtra)
+library(dplyr)
+
+# Create styled tables for each region table
+table_list <- list(
+  NOX_Region %>% arrange(desc(Mean)) %>% head(10),
+  O3_Region %>% arrange(desc(Mean)) %>% head(10),
+  PM25_Region %>% arrange(desc(Mean)) %>% head(10)
+)
+
+# For each table in the list, apply kable and styling
+styled_tables <- lapply(table_list, function(tbl) {
+  kable(tbl) %>% 
+    kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+})
+
+# Optionally, you can display the styled tables in your R Markdown or Shiny app.
+# For example, if you are using R Markdown, each table will be rendered one after another.
+styled_tables
+
+```
+
+
+
+
+```{r}
+ggplot(NOX_Region, aes(x = Year, y = Mean, col = Region)) + geom_line() + facet_wrap(~ Region)
+ggplot(O3_Region, aes(x = Year, y = Mean, col = Region)) + geom_line() + theme(legend.position="none") + facet_wrap(~ Region) 
+ggplot(PM25_Region, aes(x = Year, y = Mean, col = Region)) + geom_line() + theme(legend.position="none") + facet_wrap(~ Region)
+
+```
+
+## Map cities
+```{r}
+NOX_LL = read_excel("./data/NOX_LL.xlsx")
+NOX_LL = NOX_LL %>% filter(Longitude < -50)
+NOX_map = ggplot(NOX_LL, aes(Longitude, Latitude)) + 
+  geom_jitter(size=0.1) +
+  coord_quickmap()
+NOX_map
+```
+
+
+
+Tables
+```{r}
+# Make tables
+# Mean per years for that particulate matter
+
+NOX_City_mean = NOX %>% group_by(City) %>% summarise("Mean NOX" = mean(Mean))
+
+# kable(NOX_City_mean)
+
+SO2_City_mean = SO2 %>% group_by(City) %>% summarise("Mean SO2" = mean(Mean))
+O3_City_mean = O3 %>% group_by(City) %>% summarise("Mean O3" = mean(Mean))
+PM25_City_mean = PM25 %>% group_by(City) %>% summarise("Mean PM25" = mean(Mean))
+
+```
+
+## Need To Decide What to do with the NAs, left_join? or smthn?
+```{r}
+# Making one big table of Pollutant by City 
+
+City_Means = list(NOX_City_mean, PM25_City_mean, SO2_City_mean, O3_City_mean)
+
+Combined_City_Mean = reduce(City_Means, full_join, by = "City")
+head(kable(Combined_City_Mean))
+
+```
+
+```{r}
+NOX_Yearly_Mean = NOX %>% group_by(Year) %>% summarise("Mean NOX" = mean(Mean))
+O3_Yearly_Mean = O3 %>% group_by(Year) %>% summarise("Mean O3" = mean(Mean))
+PM25_Yearly_Mean = PM25 %>% group_by(Year) %>% summarise("Mean PM25" = mean(Mean))
+SO2_Yearly_Mean = SO2 %>% group_by(Year) %>% summarise("Mean SO2" = mean(Mean))
+
+
+
+head(kable(NOX_Yearly_Mean))
+```
+
+
+
+## Same thing w NAs, we prob should na.rm when we use mean O-O
+```{r}
+# Making one big table of Pollutant by City 
+
+Yearly_Means = list(NOX_Yearly_Mean, PM25_Yearly_Mean, SO2_Yearly_Mean, O3_Yearly_Mean)
+
+Combined_Yearly_Mean = reduce(Yearly_Means, full_join, by = "Year")
+kable(Combined_Yearly_Mean %>% head(10))
+
+```
+
+
+```{r}
+Graphing_Yearly_Means <- Combined_Yearly_Mean %>% 
+               pivot_longer(cols = starts_with("Mean"),
+               names_to = "Pollutant",
+               values_to = "Value")
+head(kable(Graphing_Yearly_Means))
+ggplot(Graphing_Yearly_Means, 
+       aes(x = Year, y = Value, 
+           col = factor(Pollutant, 
+                        levels = c("Mean NOX", "Mean O3", "Mean PM25", "Mean SO2"), 
+                        labels = c("NOX", "O3", "PM25", "SO2")))) + 
+      geom_point() +
+      labs(col = "Pollutants")
+```
+
+## Paired T-test
+compare the value of two years (2003, 2022), x_2003, x_2022
+H_0: u_1 - u_2 = 0
+H_a: u_1 - u_2 != 0
+
+```{r}
+# find 2003, 2022
+values.2003 = NOX %>% filter(Year == 2003) %>% select(City, Mean)
+values.2022 = NOX %>% filter(Year == 2022) %>% select(City, Mean)
+values = left_join(values.2003, values.2022, by="City")
+values = values %>% mutate(diff = Mean.x - Mean.y)
+t.test(values$diff)
+```
+```{r}
+# find 2003, 2022
+values.2003 = O3 %>% filter(Year == 2003) %>% select(City, Mean)
+values.2022 = O3 %>% filter(Year == 2022) %>% select(City, Mean)
+values = left_join(values.2003, values.2022, by="City")
+values = values %>% mutate(diff = Mean.x - Mean.y)
+t.test(values$diff)
+```
+```{r}
+# find 2003, 2022
+values.2003 = PM25 %>% filter(Year == 2003) %>% select(City, Mean)
+values.2022 = PM25 %>% filter(Year == 2022) %>% select(City, Mean)
+values = left_join(values.2003, values.2022, by="City")
+values = values %>% mutate(diff = Mean.x - Mean.y)
+t.test(values$diff)
+```
+
+
+
