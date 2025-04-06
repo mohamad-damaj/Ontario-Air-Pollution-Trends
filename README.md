@@ -1,6 +1,6 @@
 # Ontario Air Pollution Trends (2003–2022)
 
-This project investigates long-term spatial and temporal trends of key air pollutants—**NOx (in ppb)**, **O₃ (in ppb)**, and **PM2.5 (in µg/m³)**—in various Ontario cities from **2003 to 2022**. The analysis aims to understand how pollutant levels have changed over time, identify regions and years with peak concentrations, and model relationships among pollutants using statistical and machine learning techniques.
+This project investigates long-term spatial and temporal trends of key air pollutants—**NO<sub>x</sub> (in ppb)**, **O₃ (in ppb)**, and **PM2.5 (in µg/m³)**—in various Ontario cities from **2003 to 2022**. The analysis aims to understand how pollutant levels have changed over time, identify regions and years with peak concentrations, and model relationships among pollutants using statistical and machine learning techniques.
 
 ---
 
